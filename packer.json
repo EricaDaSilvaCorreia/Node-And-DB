@@ -1,0 +1,85 @@
+{
+  "variables": {
+    "access_key": "{{env `aws_access_key_id`}}",
+    "secret_key": ""
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "name": "ENG17App-instance",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "eu-west-1",
+    "source_ami_filter": {
+      "filters": {
+      "virtualization-type": "hvm",
+      "name": "ubuntu/images/*ubuntu-xenial-16.04-amd64-server-*",
+      "root-device-type": "ebs"
+      },
+      "owners": ["099720109477"],
+      "most_recent": true
+    },
+    "instance_type": "t2.micro",
+    "ssh_username": "ubuntu",
+    "ami_name": "ENG17-node-app-{{timestamp}}",
+  },
+  {
+    "type": "amazon-ebs",
+    "name": "ENG17db-instance",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "eu-west-1",
+    "source_ami_filter": {
+      "filters": {
+      "virtualization-type": "hvm",
+      "name": "ubuntu/images/*ubuntu-xenial-16.04-amd64-server-*",
+      "root-device-type": "ebs"
+      },
+      "owners": ["099720109477"],
+      "most_recent": true
+    },
+    "instance_type": "t2.micro",
+    "ssh_username": "ubuntu",
+    "ami_name": "ENG17-db-app-{{timestamp}}"
+  }],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": ["mkdir /home/ubuntu/app"],
+      "only": ["ENG17App-instance"]
+    },
+    {
+      "type": "file",
+      "source": "app/",
+      "destination": "/home/ubuntu/app",
+      "only": ["ENG17App-instance"]
+    },
+    {
+      "type": "chef-solo",
+      "cookbook_paths": ["./cookbooks"],
+      "run_list":["node::default"],
+      "only": ["ENG17App-instance"]
+    },
+    {
+      "type": "shell",
+      "inline": ["cd /home/ubuntu/app","npm install"],
+      "only": ["ENG17App-instance"]
+    },
+    {
+      "type": "shell",
+      "inline": ["mkdir /home/ubuntu/db"],
+      "only": ["ENG17db-instance"]
+    },
+    {
+      "type": "file",
+      "source": "environment/db/",
+      "destination": "/home/ubuntu/db",
+      "only": ["ENG17db-instance"]
+    },
+    {
+      "type": "chef-solo",
+      "cookbook_paths": ["./cookbooks"],
+      "run_list":["DB::default"],
+      "only": ["ENG17db-instance"]
+    }
+  ]
+}
